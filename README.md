@@ -1,18 +1,20 @@
 # Musify
 
-Musify is an installable Progressive Web App (PWA) music player built with Next.js.
+Musify es una PWA musical construida con Next.js.
 
-## Deploy
-Import this repository into Vercel and deploy. Vercel detects Next.js automatically. Open the HTTPS URL on a phone and choose Install app or Add to Home Screen.
+## Deploy en Vercel
+
+1. Importa este repositorio en Vercel.
+2. Mantén el Root Directory en la raíz del repositorio.
+3. Vercel detectará Next.js automáticamente.
+4. Usa pnpm install como instalación y pnpm --filter @musify/web build como build.
+5. Pulsa Deploy.
+
+Vercel te dará una URL HTTPS como https://musify-xxxxx.vercel.app. Después puedes conectar un dominio propio, por ejemplo https://musify.es.
 
 ## Local
-Run pnpm install, then pnpm --filter @musify/web dev and open http://localhost:3000.
 
-## PWA features
-- Installable manifest
-- Service worker app-shell caching
-- Responsive mobile UI
-- Media Session controls on supported browsers/devices
-- Background playback subject to browser and OS policies
+pnpm install
+pnpm dev
 
-The demo uses remote sample audio URLs. For production, replace them with audio you have the rights to distribute and serve over HTTPS.
+La aplicación incluye manifest PWA, service worker y Media Session para controles multimedia en navegadores compatibles.

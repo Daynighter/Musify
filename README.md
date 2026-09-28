@@ -1,2 +1,25 @@
 # Musify
-Musify is a modern music streaming platform built for discovering and enjoying music. It lets users search for songs, artists, albums, and playlists in one place. Users can create playlists, save favorites, manage queues, and explore personalized mixes. The platform is designed with a fast, intuitive, and customizable user experience.
+
+A modern music streaming platform focused on discovery, playlists, personalized mixes, and a fast listening experience.
+
+## Vision
+Musify brings search, playback, libraries, playlists, history, favorites, and recommendations together behind a clean, extensible architecture.
+
+## Roadmap
+- [ ] Web application
+- [ ] Music catalog and search
+- [ ] Audio player and queue
+- [ ] Playlists and favorites
+- [ ] Personalized mixes
+- [ ] Provider integrations
+- [ ] Authentication and user profiles
+- [ ] Mobile clients
+
+## Architecture
+The project is organized around a web client, API services, shared music-domain types, and provider adapters. Provider-specific integrations should stay behind a common interface so the rest of the application remains independent from any single music source.
+
+## Development
+The repository is currently being scaffolded. See the project structure below as the implementation grows.
+
+## License
+TBD

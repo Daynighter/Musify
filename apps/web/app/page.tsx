@@ -1,0 +1,2 @@
+const features=["Music discovery","Playlists and favorites","Queue and playback","Personalized mixes"];
+export default function Home(){return <main className="shell"><nav><strong>Musify</strong><span>Discover · Library · Playlists</span></nav><section className="hero"><p className="eyebrow">YOUR MUSIC, YOUR WAY</p><h1>Find your next favorite sound.</h1><p className="subtitle">A clean, extensible music platform for discovery, listening, and personalized collections.</p><div className="features">{features.map(f=><div className="card" key={f}>{f}</div>)}</div></section></main>}

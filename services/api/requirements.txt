@@ -1,0 +1,3 @@
+# Mfly API uses the public tombulled/innertube client for YouTube/YouTube Music search.
+# Source: https://github.com/tombulled/innertube
+innertube @ git+https://github.com/tombulled/innertube.git@main

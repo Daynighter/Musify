@@ -1,93 +1,45 @@
+import { spawn } from "node:child_process";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const app=Fastify({logger:true});
 await app.register(cors,{origin:true});
 
-const INNERTUBE_URL="https://music.youtube.com/youtubei/v1/search?prettyPrint=false";
-const CLIENT_VERSION="1.20260915.01.00";
+const here=dirname(fileURLToPath(import.meta.url));
+const searchScript=join(here,"../innertube/search.py");
 
-type Renderer=Record<string,any>;
+type SearchItem={videoId:string;title:string;artist:string;album?:string;artwork?:string};
 
-function textOf(value:any):string{
-  if(!value)return "";
-  if(typeof value==="string")return value;
-  if(Array.isArray(value))return value.map(textOf).join("");
-  if(Array.isArray(value.runs))return value.runs.map((r:any)=>r.text||"").join("");
-  return value.simpleText||value.text||"";
+function runInnerTubeSearch(query:string):Promise<SearchItem[]>{
+  return new Promise((resolve,reject)=>{
+    const command=process.env.PYTHON_BIN||"python3";
+    const child=spawn(command,[searchScript,query],{stdio:["ignore","pipe","pipe"]});
+    let stdout="";let stderr="";
+    child.stdout.setEncoding("utf8");child.stderr.setEncoding("utf8");
+    child.stdout.on("data",(chunk)=>{stdout+=chunk});
+    child.stderr.on("data",(chunk)=>{stderr+=chunk});
+    child.on("error",reject);
+    child.on("close",(code)=>{
+      if(code!==0)return reject(new Error(stderr||`InnerTube exited with code ${code}`));
+      try{
+        const data=JSON.parse(stdout);
+        resolve(Array.isArray(data.items)?data.items:[]);
+      }catch(error){reject(error)}
+    });
+  });
 }
 
-function findRenderers(node:any,out:Renderer[]=[]):Renderer[]{
-  if(!node||typeof node!=="object")return out;
-  if(Array.isArray(node)){
-    for(const item of node)findRenderers(item,out);
-    return out;
-  }
-  for(const [key,value] of Object.entries(node)){
-    if(key==="musicResponsiveListItemRenderer"||key==="videoRenderer")out.push(value as Renderer);
-    else findRenderers(value,out);
-  }
-  return out;
-}
-
-function mapItem(renderer:Renderer){
-  const videoId=renderer.videoId;
-  const flex=renderer.flexColumns||[];
-  const title=textOf(renderer.title)||textOf(flex?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text)||"Sin título";
-  const second=flex?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text;
-  const secondText=textOf(second);
-  const runs=second?.runs||[];
-  const artist=runs?.[0]?.text||secondText.split(" • ")[0]||"YouTube Music";
-  const thumbnails=renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails||renderer.thumbnail?.thumbnails||[];
-
-  return {
-    videoId,
-    title,
-    artist,
-    album:secondText.includes(" • ")?secondText.split(" • ").slice(-1)[0]:undefined,
-    artwork:thumbnails.at(-1)?.url,
-  };
-}
-
-app.get("/health",async()=>({ok:true,service:"mfly-api"}));
+app.get("/health",async()=>({ok:true,service:"mfly-api",provider:"tombulled/innertube"}));
 
 app.get("/api/search",async(request,reply)=>{
   const query=request.query as {q?:string};
   const q=query.q?.trim();
   if(!q)return {items:[]};
-
-  try{
-    const response=await fetch(INNERTUBE_URL,{
-      method:"POST",
-      headers:{
-        "content-type":"application/json",
-        "origin":"https://music.youtube.com",
-        "user-agent":"Mozilla/5.0",
-      },
-      body:JSON.stringify({
-        context:{client:{
-          clientName:"WEB_REMIX",
-          clientVersion:CLIENT_VERSION,
-          hl:"es",
-          gl:"ES",
-        }},
-        query:q,
-      }),
-    });
-
-    if(!response.ok){
-      return reply.code(502).send({error:"Music provider search failed",items:[]});
-    }
-
-    const data=await response.json();
-    const items=findRenderers(data)
-      .map(mapItem)
-      .filter((item)=>item.videoId)
-      .filter((item,index,all)=>all.findIndex((x)=>x.videoId===item.videoId)===index)
-      .slice(0,20);
-
-    return {items};
-  }catch{
+  try{return {items:await runInnerTubeSearch(q)}}
+  catch(error){
+    request.log.error(error);
     return reply.code(502).send({error:"Music provider is unavailable",items:[]});
   }
 });

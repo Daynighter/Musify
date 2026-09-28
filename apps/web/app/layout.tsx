@@ -1,4 +1,1 @@
-import type { ReactNode } from "react";
-import "./globals.css";
-export const metadata={title:"Musify",description:"Discover, organize, and enjoy your music."};
-export default function RootLayout({children}:{children:ReactNode}){return <html lang="en"><body>{children}</body></html>}
+import type { Metadata } from "next";import "./globals.css";export const metadata:Metadata={title:"Musify",description:"PWA de música"};export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="es"><body>{children}</body></html>}

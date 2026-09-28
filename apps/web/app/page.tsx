@@ -12,15 +12,17 @@ const demo:Track[]=[
 {id:3,title:"Ocean Echo",artist:"Mira",album:"Tides",duration:"3:41",src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"}];
 
 export default function Home(){
-const audio=useRef<HTMLAudioElement>(null);
+const audio=useRef<HTMLAudioElement>(null);const yt=useRef<any>(null);const ytReady=useRef(false);
 const[q,setQ]=useState("");const[searching,setSearching]=useState(false);const[results,setResults]=useState<MusicResult[]>([]);
 const[selected,setSelected]=useState<MusicResult|null>(null);const[current,setCurrent]=useState<Track|null>(null);const[queue,setQueue]=useState<MusicResult[]>([]);const[playing,setPlaying]=useState(false);const[progress,setProgress]=useState(0);
 const[chat,setChat]=useState<{role:"user"|"assistant";text:string}[]>([]);
 
-useEffect(()=>{const a=audio.current;if(!a||!current)return;a.src=current.src;if(playing)a.play().catch(()=>setPlaying(false))},[current,playing]);
-useEffect(()=>{const a=audio.current;if(!a)return;const onTime=()=>setProgress(a.duration? a.currentTime/a.duration:0);a.addEventListener("timeupdate",onTime);return()=>a.removeEventListener("timeupdate",onTime)},[]);
+useEffect(()=>{if(typeof window==="undefined")return;const w=window as any;if(w.YT?.Player){ytReady.current=true;return}const existing=document.querySelector('script[src="https://www.youtube.com/iframe_api"]');if(!existing){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";document.head.appendChild(script)}w.onYouTubeIframeAPIReady=()=>{ytReady.current=true;if(current)loadYouTube(current)};return()=>{if(w.onYouTubeIframeAPIReady)w.onYouTubeIframeAPIReady=undefined}},[]);
+useEffect(()=>{if(!current||!yt.current)return;loadYouTube(current)},[current]);
+function loadYouTube(t:Track){const w=window as any;if(!w.YT?.Player)return;if(yt.current?.loadVideoById){yt.current.loadVideoById(t.id);return}yt.current=new w.YT.Player("mfly-youtube-player",{width:"320",height:"200",videoId:t.id,playerVars:{playsinline:1,autoplay:1,controls:1,origin:window.location.origin},events:{onReady:(e:any)=>{e.target.playVideo();setPlaying(true)},onStateChange:(e:any)=>{setPlaying(e.data===1);if(e.target.getDuration())setProgress(e.target.getCurrentTime()/e.target.getDuration())},onError:()=>setPlaying(false),onAutoplayBlocked:()=>setPlaying(false)}})}
+useEffect(()=>{const id=window.setInterval(()=>{if(yt.current?.getCurrentTime&&yt.current?.getDuration){const d=yt.current.getDuration();if(d)setProgress(yt.current.getCurrentTime()/d)}},500);return()=>window.clearInterval(id)},[]);
 useEffect(()=>{if(!current||!("mediaSession"in navigator))return;navigator.mediaSession.metadata=new MediaMetadata({title:current.title,artist:current.artist,album:current.album});navigator.mediaSession.setActionHandler("play",()=>{audio.current?.play();setPlaying(true)});navigator.mediaSession.setActionHandler("pause",()=>{audio.current?.pause();setPlaying(false)})},[current]);
-function playResult(x:MusicResult){setSelected(null);setQueue(results);setCurrent({id:0,title:x.title,artist:x.artist,album:x.album||"YouTube Music",duration:"",src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"});setPlaying(true);}
+function playResult(x:MusicResult){setSelected(null);setQueue(results);setCurrent({id:x.videoId as any,title:x.title,artist:x.artist,album:x.album||"YouTube Music",duration:"",src:""});setPlaying(true);}
 function next(){const i=current?queue.findIndex(x=>x.title===current.title):0;const x=queue[(i+1)%Math.max(queue.length,1)];if(x)playResult(x)}
 
 async function search(){
@@ -31,7 +33,7 @@ catch{setChat(c=>[...c,{role:"assistant",text:"No se pudo completar la búsqueda
 finally{setSearching(false)}
 }
 const reset=()=>{setChat([]);setQ("");setResults([]);setSelected(null)};
-const toggle=()=>{const a=audio.current;if(!a)return;if(a.paused){a.play();setPlaying(true)}else{a.pause();setPlaying(false)}};
+const toggle=()=>{if(!yt.current)return;if(playing){yt.current.pauseVideo();setPlaying(false)}else{yt.current.playVideo();setPlaying(true)}};
 
 return <main className="app">
 <aside className="sidebar">
@@ -71,8 +73,8 @@ return <main className="app">
 </form>
 </section>
 
-<audio ref={audio} onEnded={()=>setPlaying(false)} preload="metadata"/>
-{selected&&<div className="playerModal" onClick={()=>setSelected(null)}><div className="playerCard" onClick={e=>e.stopPropagation()}><button className="close" aria-label="Cerrar" onClick={()=>setSelected(null)}>{icon("M6 6l12 12M18 6L6 18")}</button>{selected.artwork&&<img src={selected.artwork} alt=""/>}<h2>{selected.title}</h2><p>{selected.artist}</p><div className="embed"><iframe title={selected.title} src={"https://www.youtube.com/embed/"+selected.videoId+"?autoplay=1&rel=0"} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/></div><a className="openExternal" href={"https://music.youtube.com/watch?v="+selected.videoId} target="_blank" rel="noreferrer">Abrir en YouTube Music ↗</a></div></div>}
+<div id="mfly-youtube-player" className="youtubePlayer" aria-label="Reproductor de YouTube"/>
+
 
 <footer className="playerBar">{current?<><div className="now"><div className="mini">{current.title[0]}</div><div><b>{current.title}</b><span>{current.artist}</span></div></div><div className="player"><div className="controls"><button aria-label="Anterior">{icon("M6 6v12M18 6l-8 6 8 6z")}</button><button className="mainPlay" aria-label="Reproducir" onClick={toggle}>{icon(playing?"M8 6h3v12H8zM13 6h3v12h-3z":"M8 5v14l11-7z")}</button><button aria-label="Siguiente" onClick={next}>{icon("M18 6v12M6 6l8 6-8 6z")}</button></div><div className="bar"><i style={{width:`${progress*100}%`}}/></div></div><span>{current.duration||"Now playing"}</span></div></>:<div className="playerEmpty">Selecciona una canción para reproducir</div>}</footer>
 </main>}

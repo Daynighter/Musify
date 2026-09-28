@@ -1,25 +1,18 @@
 # Musify
 
-A modern music streaming platform focused on discovery, playlists, personalized mixes, and a fast listening experience.
+Musify is an installable Progressive Web App (PWA) music player built with Next.js.
 
-## Vision
-Musify brings search, playback, libraries, playlists, history, favorites, and recommendations together behind a clean, extensible architecture.
+## Deploy
+Import this repository into Vercel and deploy. Vercel detects Next.js automatically. Open the HTTPS URL on a phone and choose Install app or Add to Home Screen.
 
-## Roadmap
-- [ ] Web application
-- [ ] Music catalog and search
-- [ ] Audio player and queue
-- [ ] Playlists and favorites
-- [ ] Personalized mixes
-- [ ] Provider integrations
-- [ ] Authentication and user profiles
-- [ ] Mobile clients
+## Local
+Run pnpm install, then pnpm --filter @musify/web dev and open http://localhost:3000.
 
-## Architecture
-The project is organized around a web client, API services, shared music-domain types, and provider adapters. Provider-specific integrations should stay behind a common interface so the rest of the application remains independent from any single music source.
+## PWA features
+- Installable manifest
+- Service worker app-shell caching
+- Responsive mobile UI
+- Media Session controls on supported browsers/devices
+- Background playback subject to browser and OS policies
 
-## Development
-The repository is currently being scaffolded. See the project structure below as the implementation grows.
-
-## License
-TBD
+The demo uses remote sample audio URLs. For production, replace them with audio you have the rights to distribute and serve over HTTPS.

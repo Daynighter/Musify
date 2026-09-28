@@ -1,0 +1,1 @@
+{"framework":"nextjs","buildCommand":"pnpm --filter @musify/web build","installCommand":"pnpm install --frozen-lockfile=false","outputDirectory":".next"}

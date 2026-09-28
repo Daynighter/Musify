@@ -1,4 +1,1 @@
-{
-  "name":"musify","private":true,"version":"0.1.0","packageManager":"pnpm@10.0.0",
-  "scripts":{"dev":"pnpm --filter @musify/web dev","build":"pnpm -r build","lint":"pnpm -r lint","typecheck":"pnpm -r typecheck"}
-}
+{"name":"musify","private":true,"version":"0.1.0","packageManager":"pnpm@10.0.0","engines":{"node":">=20.9.0"},"scripts":{"dev":"pnpm --filter @musify/web dev","build":"pnpm --filter @musify/web build","lint":"pnpm --filter @musify/web lint","typecheck":"pnpm --filter @musify/web typecheck"}}

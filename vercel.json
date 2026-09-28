@@ -1,1 +1,1 @@
-{"buildCommand":"pnpm --filter @musify/web build","installCommand":"pnpm install","framework":"nextjs"}
+{"buildCommand":"pnpm --filter @musify/web build","installCommand":"pnpm install --no-frozen-lockfile","framework":"nextjs"}

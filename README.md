@@ -1,20 +1,24 @@
-# Musify
+# Mfly
 
-Musify es una PWA musical construida con Next.js.
+Mfly es una PWA musical con una interfaz conversacional: busca música, descubre artistas, guarda playlists y controla un reproductor desde una sola pantalla.
 
-## Deploy en Vercel
+## Vercel
 
-1. Importa este repositorio en Vercel.
-2. Mantén el Root Directory en la raíz del repositorio.
-3. Vercel detectará Next.js automáticamente.
-4. Usa pnpm install como instalación y pnpm --filter @musify/web build como build.
-5. Pulsa Deploy.
+Importa el repositorio en Vercel con Root Directory /. Usa npm install y npm run build. Añade la variable de entorno YOUTUBE_API_KEY para activar las búsquedas de YouTube.
 
-Vercel te dará una URL HTTPS como https://musify-xxxxx.vercel.app. Después puedes conectar un dominio propio, por ejemplo https://musify.es.
+## YouTube API
 
-## Local
+Mfly usa YouTube Data API v3 para buscar metadatos y resultados. La clave se mantiene en el servidor mediante YOUTUBE_API_KEY y no se envía al navegador.
 
-pnpm install
-pnpm dev
+La API oficial de YouTube no sirve para extraer MP3 ni separar pistas de audio. Sus políticas también prohíben usar la API para permitir reproducción en segundo plano del reproductor de YouTube. Por eso Mfly no implementa extracción de audio de YouTube ni descarga de MP3. Los resultados se abren en YouTube y el reproductor PWA usa audio que tengas derecho a distribuir.
 
-La aplicación incluye manifest PWA, service worker y Media Session para controles multimedia en navegadores compatibles.
+## PWA
+
+Incluye manifest, service worker y Media Session para controles multimedia en navegadores compatibles. La reproducción en segundo plano depende del navegador y del sistema operativo.
+
+## Desarrollo
+
+npm install
+npm run dev
+
+Abre http://localhost:3000.

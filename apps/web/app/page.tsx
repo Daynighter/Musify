@@ -10,6 +10,8 @@ type MusicResult = {
   artwork?: string;
 };
 
+const MFLY_URL = "https://mfly.vercel.app";
+
 const icon = (path: string) => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d={path} /></svg>
 );
@@ -39,7 +41,7 @@ export default function Home() {
           controls: 0,
           rel: 0,
           modestbranding: 1,
-          origin: window.location.origin,
+          origin: MFLY_URL,
         },
         events: {
           onReady: () => {
@@ -126,7 +128,7 @@ export default function Home() {
     setSearching(true);
 
     try {
-      const response = await fetch("/api/music/search?q=" + encodeURIComponent(text));
+      const response = await fetch(MFLY_URL + "/api/music/search?q=" + encodeURIComponent(text));
       const data = await response.json();
       const items: MusicResult[] = data.items || [];
       setResults(items);

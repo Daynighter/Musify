@@ -19,7 +19,7 @@ function getClient() {
   return clientPromise;
 }
 
-export async function GET(req: NextRequest) {
+function getBestArtwork(song: any): string | undefined {\n  const thumbnails = [\n    ...(song.thumbnails ?? []),\n    ...(song.thumbnail ?? []),\n  ].filter((t: any) => t?.url);\n\n  const urls = thumbnails.map((t: any) => t.url as string);\n  const preferred = urls.find((url) => /w1200|w1000|w800|w600|w500|w400|maxresdefault|sddefault/i.test(url));\n  const source = preferred ?? urls[urls.length - 1];\n  if (!source) return undefined;\n\n  // YouTube Music thumbnails commonly expose a 120x120-ish variant.\n  // Request the largest standard image variant without changing the image identity.\n  return source\n    .replace(/=w\\d+-h\\d+[^&]*/i, "=w1200-h1200-l90-rj")\n    .replace(/=s\\d+[^&]*/i, "=s1200")\n    .replace(/([?&])w=\\d+(&h=\\d+)?/i, "$1w=1200")\n    .replace(/([?&])h=\\d+(&w=\\d+)?/i, "$1h=1200");\n}\n\nexport async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ items: [] });
 

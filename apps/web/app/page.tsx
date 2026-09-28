@@ -54,7 +54,7 @@ return <main className="app">
 <section className={"chat "+(chat.length?"hasMessages":"")}>
 {chat.length===0?<div className="welcome">
 <div className="welcomeLogo">M</div><h1>¿Qué quieres escuchar?</h1><p>Busca música como si estuvieras hablando conmigo.</p>
-<div className="promptGrid"><button onClick={()=>setQ("música para estudiar")}><span>◌</span><b>Música para estudiar</b><small>Ambiente y concentración</small></button><button onClick={()=>setQ("pop español")}><span>✦</span><b>Pop español</b><small>Lo más sonado</small></button><button onClick={()=>setQ("lo-fi")}><span>◒</span><b>Lo-fi</b><small>Relajarte y concentrarte</small></button><button onClick={()=>setQ("artistas parecidos a The Weeknd")}><span>⌁</span><b>Descubrir artistas</b><small>Encuentra algo nuevo</small></button></div>
+
 </div>:<div className="conversation">
 {chat.map((m,i)=><div className={"message "+m.role} key={i}>
 {m.role==="assistant"&&<div className="assistantAvatar">M</div>}

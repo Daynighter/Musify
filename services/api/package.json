@@ -1,0 +1,1 @@
+{"name":"@musify/api","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"tsx src/server.ts","build":"tsc","typecheck":"tsc --noEmit"},"dependencies":{"@fastify/cors":"latest","fastify":"latest"},"devDependencies":{"@types/node":"latest","tsx":"latest","typescript":"latest"}}

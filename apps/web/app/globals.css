@@ -18,3 +18,13 @@ body{min-height:100vh}button,input{font:inherit}button{border:0;background:none;
 @media(max-width:1000px){.sidebar{width:220px}.main{margin-left:220px}.composer{left:calc(220px + (100vw - 220px)/2);width:min(780px,calc(100% - 270px))}.resultGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.topbar{padding:0 14px}.mobileMenu{display:block;width:34px;margin-right:5px;color:#aaa}.chat{width:calc(100% - 28px);padding-top:40px}.promptGrid{grid-template-columns:1fr}.resultGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.composer{left:50%;bottom:78px;width:calc(100% - 20px)}.playerBar{height:62px;padding:7px 12px}.now{width:auto}.now div:last-child{display:none}.playerBar>span{display:none}.player{max-width:none}.composerHint{display:none}}
 @media(min-width:1300px){.resultGrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.artwork{box-shadow:0 6px 24px #0004}
+.artwork img{image-rendering:auto}
+.artwork button{display:grid;place-items:center}
+.artwork button svg{width:17px;height:17px;fill:currentColor;stroke:none}
+.send svg,.attach svg,.mainPlay svg,.controls button svg,.close svg{width:17px;height:17px}
+.mainPlay svg{fill:currentColor;stroke:none}
+.controls button svg{width:16px;height:16px}
+.close svg{width:20px;height:20px}
+.playerBar{backdrop-filter:blur(18px)}

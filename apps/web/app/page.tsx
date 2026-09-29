@@ -338,7 +338,7 @@ export default function Home() {
                               <button
                                 className="cover"
                                 type="button"
-                                onClick={() => playTrack(track, message.results, message.results.indexOf(track))
+                                onClick={() => playTrack(track, message.results, message.results.indexOf(track))}
                                 aria-label={"Reproducir " + track.title}
                               >
                                 {image ? (

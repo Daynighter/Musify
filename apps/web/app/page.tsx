@@ -3,11 +3,14 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 type MusicResult = {
-  videoId: string;
+  id: string;
+  videoId?: string;
   title: string;
   artist: string;
   album?: string;
   artwork?: string;
+  previewUrl?: string;
+  source: "itunes" | "youtube";
 };
 
 type Message = {
@@ -34,7 +37,7 @@ function Icon({ path }: { path: string }) {
 }
 
 function ResultCard({ video, onPlay }: { video: MusicResult; onPlay: () => void }) {
-  const image = video.artwork || "https://i.ytimg.com/vi/" + encodeURIComponent(video.videoId) + "/hqdefault.jpg";
+  const image = video.artwork || (video.videoId ? "https://i.ytimg.com/vi/" + encodeURIComponent(video.videoId) + "/hqdefault.jpg" : "");
 
   return (
     <article className="videoCard">
@@ -167,7 +170,7 @@ export default function Home() {
                       {message.results && message.results.length > 0 && (
                         <div className="resultsGrid">
                           {message.results.map((video) => (
-                            <ResultCard key={video.videoId} video={video} onPlay={() => setPlayer(video)} />
+                            <ResultCard key={video.id} video={video} onPlay={() => setPlayer(video)} />
                           ))}
                         </div>
                       )}
@@ -199,10 +202,11 @@ export default function Home() {
             </div>
             <div className="playerFrame">
               <iframe
-                src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&rel=0"}
+                src={player.previewUrl || (player.videoId ? "https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&rel=0" : "")}
                 title={player.title}
-                allow="autoplay; encrypted-media; picture-in-picture; web-share"
-                allowFullScreen
+                controls
+                autoPlay
+                playsInline
               />
             </div>
           </div>

@@ -188,6 +188,30 @@ export default function Home() {
     void searchMusic();
   }
 
+  function togglePlayback() {
+    if (player?.source === "youtube" && youtubeReadyRef.current) {
+      if (isPlaying) {
+        youtubePlayerRef.current?.pauseVideo();
+        setIsPlaying(false);
+      } else {
+        youtubePlayerRef.current?.playVideo();
+        setIsPlaying(true);
+      }
+      return;
+    }
+
+    const media = document.querySelector<HTMLAudioElement>(".mini-player audio");
+    if (!media) return;
+
+    if (media.paused) {
+      void media.play();
+      setIsPlaying(true);
+    } else {
+      media.pause();
+      setIsPlaying(false);
+    }
+  }
+
   function playTrack(track: MusicResult, list?: MusicResult[], index?: number) {
     const nextQueue = list ?? queue;
     const nextIndex = index ?? nextQueue.findIndex((item) => item.id === track.id);
@@ -382,7 +406,7 @@ export default function Home() {
           </div>
           <div className="mini-player-actions">
             <button type="button" aria-label="Anterior" title="Anterior" onClick={playPrevious} disabled={queueIndex <= 0}><SkipBack size={18} fill="currentColor" /></button>
-            <button type="button" className="mini-play" aria-label={isPlaying ? "Pausar" : "Reproducir"} title={isPlaying ? "Pausar" : "Reproducir"}>
+            <button type="button" className="mini-play" aria-label={isPlaying ? "Pausar" : "Reproducir"} title={isPlaying ? "Pausar" : "Reproducir"} onClick={togglePlayback}>
               {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
             </button>
             <button type="button" aria-label="Siguiente" title="Siguiente" onClick={playNext} disabled={queueIndex < 0 || queueIndex >= queue.length - 1}><SkipForward size={18} fill="currentColor" /></button>
@@ -392,8 +416,6 @@ export default function Home() {
             <div ref={youtubeContainerRef} className={player.source === "youtube" ? "youtube-player-host" : "youtube-player-host hidden"} />
             {player.source === "itunes" && player.previewUrl ? (
               <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={playNext} />
-            ) : player.videoId ? (
-              <iframe src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&controls=1&rel=0&playsinline=1"} title={player.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
             ) : null}
           </div>
         </div>

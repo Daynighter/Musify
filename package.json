@@ -1,1 +1,18 @@
-{"name":"musify","private":true,"version":"0.1.0","packageManager":"npm@11.6.0","engines":{"node":">=22.14.0"},"scripts":{"dev":"npm run dev --workspace=@musify/web","build":"npm run build --workspace=@musify/web","lint":"npm run lint --workspace=@musify/web","typecheck":"npm run typecheck --workspace=@musify/web"}}
+{
+  "name": "musify",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@11.6.0",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@musify/web",
+    "build": "npm run build --workspace=@musify/web",
+    "lint": "npm run lint --workspace=@musify/web",
+    "typecheck": "npm run typecheck --workspace=@musify/web"
+  }
+}

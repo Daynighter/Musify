@@ -201,13 +201,16 @@ export default function Home() {
               <button className="playerClose" type="button" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor"><Icon path={icons.x} /></button>
             </div>
             <div className="playerFrame">
-              <iframe
-                src={player.previewUrl || (player.videoId ? "https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&rel=0" : "")}
-                title={player.title}
-                controls
-                autoPlay
-                playsInline
-              />
+              {player.source === "itunes" && player.previewUrl ? (
+                <audio src={player.previewUrl} controls autoPlay playsInline />
+              ) : player.videoId ? (
+                <iframe
+                  src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&rel=0&modestbranding=1"}
+                  title={player.title}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : null}
             </div>
           </div>
         </div>

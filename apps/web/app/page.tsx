@@ -8,8 +8,8 @@ import {
   Loader2,
   MoreHorizontal,
   Music2,
-  Play,
   Pause,
+  Play,
   SkipBack,
   SkipForward,
   Sparkles,
@@ -23,8 +23,7 @@ type MusicResult = {
   artist: string;
   album?: string;
   artwork?: string;
-  previewUrl?: string;
-  source: "itunes" | "youtube";
+  source: "youtube";
 };
 
 type YouTubePlayer = {
@@ -32,6 +31,21 @@ type YouTubePlayer = {
   playVideo: () => void;
   pauseVideo: () => void;
   destroy?: () => void;
+};
+
+type YouTubeApi = {
+  Player: new (
+    element: HTMLElement,
+    options: {
+      width: string;
+      height: string;
+      playerVars: Record<string, number>;
+      events: {
+        onReady: () => void;
+        onStateChange: (event: { data: number }) => void;
+      };
+    }
+  ) => YouTubePlayer;
 };
 
 type Message = {
@@ -48,6 +62,13 @@ const quickSearches = [
   { label: "Bandas sonoras", query: "Bandas sonoras", icon: Gamepad2 },
 ];
 
+declare global {
+  interface Window {
+    YT?: YouTubeApi;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,7 +76,7 @@ export default function Home() {
   const [player, setPlayer] = useState<MusicResult | null>(null);
   const [queue, setQueue] = useState<MusicResult[]>([]);
   const [queueIndex, setQueueIndex] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
@@ -66,46 +87,29 @@ export default function Home() {
   useEffect(() => {
     textareaRef.current?.focus();
 
-    const w = window as Window & {
-      YT?: { Player: new (element: HTMLElement, options: any) => YouTubePlayer };
-      onYouTubeIframeAPIReady?: () => void;
-    };
+    const loadYouTubeApi = () =>
+      new Promise<void>((resolve) => {
+        if (window.YT?.Player) {
+          resolve();
+          return;
+        }
 
-    const createPlayer = () => {
-      if (!youtubeContainerRef.current || !w.YT?.Player) return;
-      youtubePlayerRef.current?.destroy?.();
-      youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
-        width: "200",
-        height: "200",
-        playerVars: { playsinline: 1, controls: 1, rel: 0 },
-        events: {
-          onReady: () => {
-            youtubeReadyRef.current = true;
-            if (player?.videoId) {
-              youtubePlayerRef.current?.loadVideoById(player.videoId);
-            }
-          },
-          onStateChange: (event: { data: number }) => {
-            if (event.data === 1) setIsPlaying(true);
-            if (event.data === 2) setIsPlaying(false);
-            if (event.data === 0) playNextRef.current();
-          },
-        },
+        const previousReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          previousReady?.();
+          resolve();
+        };
+
+        if (!document.querySelector('script[data-youtube-iframe-api]')) {
+          const script = document.createElement("script");
+          script.src = "https://www.youtube.com/iframe_api";
+          script.async = true;
+          script.dataset.youtubeIframeApi = "true";
+          document.head.appendChild(script);
+        }
       });
-    };
 
-    if (!document.querySelector('script[data-youtube-iframe-api]')) {
-      const script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.async = true;
-      script.dataset.youtubeIframeApi = "true";
-      w.onYouTubeIframeAPIReady = createPlayer;
-      document.head.appendChild(script);
-    } else if (w.YT?.Player) {
-      createPlayer();
-    } else {
-      w.onYouTubeIframeAPIReady = createPlayer;
-    }
+    void loadYouTubeApi();
 
     return () => {
       youtubePlayerRef.current?.destroy?.();
@@ -115,9 +119,73 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!player?.videoId || !youtubeReadyRef.current) return;
-    youtubePlayerRef.current?.loadVideoById(player.videoId);
-    setIsPlaying(true);
+    if (!player?.videoId) {
+      youtubePlayerRef.current?.destroy?.();
+      youtubePlayerRef.current = null;
+      youtubeReadyRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    async function mountPlayer() {
+      if (!youtubeContainerRef.current) return;
+
+      await new Promise<void>((resolve) => {
+        if (window.YT?.Player) {
+          resolve();
+          return;
+        }
+
+        const previousReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          previousReady?.();
+          resolve();
+        };
+      });
+
+      if (cancelled || !youtubeContainerRef.current || !window.YT?.Player) {
+        return;
+      }
+
+      youtubePlayerRef.current?.destroy?.();
+      youtubeReadyRef.current = false;
+
+      youtubePlayerRef.current = new window.YT.Player(
+        youtubeContainerRef.current,
+        {
+          width: "200",
+          height: "200",
+          playerVars: {
+            playsinline: 1,
+            controls: 1,
+            rel: 0,
+          },
+          events: {
+            onReady: () => {
+              youtubeReadyRef.current = true;
+              if (player.videoId) {
+                youtubePlayerRef.current?.loadVideoById(player.videoId);
+              }
+            },
+            onStateChange: (event) => {
+              if (event.data === 1) setIsPlaying(true);
+              if (event.data === 2) setIsPlaying(false);
+              if (event.data === 0) playNextRef.current();
+            },
+          },
+        }
+      );
+    }
+
+    void mountPlayer();
+
+    return () => {
+      cancelled = true;
+      youtubePlayerRef.current?.destroy?.();
+      youtubePlayerRef.current = null;
+      youtubeReadyRef.current = false;
+    };
   }, [player?.videoId]);
 
   function resizeTextarea() {
@@ -149,12 +217,12 @@ export default function Home() {
         await response.json();
 
       if (!response.ok || data.error) {
-        throw new Error(
-          data.error || "No se pudo completar la búsqueda."
-        );
+        throw new Error(data.error || "No se pudo completar la búsqueda.");
       }
 
-      const items = Array.isArray(data.items) ? data.items : [];
+      const items = Array.isArray(data.items)
+        ? data.items.filter((item) => item.source === "youtube" && item.videoId)
+        : [];
 
       setMessages((current) => [
         ...current,
@@ -163,7 +231,7 @@ export default function Home() {
           role: "assistant",
           text: items.length
             ? `Resultados para “${clean}”`
-            : "No se encontraron canciones para esta búsqueda.",
+            : "No se encontraron canciones reproducibles.",
           results: items,
         },
       ]);
@@ -189,32 +257,24 @@ export default function Home() {
   }
 
   function togglePlayback() {
-    if (player?.source === "youtube" && youtubeReadyRef.current) {
-      if (isPlaying) {
-        youtubePlayerRef.current?.pauseVideo();
-        setIsPlaying(false);
-      } else {
-        youtubePlayerRef.current?.playVideo();
-        setIsPlaying(true);
-      }
-      return;
-    }
+    if (!youtubePlayerRef.current || !youtubeReadyRef.current) return;
 
-    const media = document.querySelector<HTMLAudioElement>(".mini-player audio");
-    if (!media) return;
-
-    if (media.paused) {
-      void media.play();
-      setIsPlaying(true);
+    if (isPlaying) {
+      youtubePlayerRef.current.pauseVideo();
     } else {
-      media.pause();
-      setIsPlaying(false);
+      youtubePlayerRef.current.playVideo();
     }
   }
 
-  function playTrack(track: MusicResult, list?: MusicResult[], index?: number) {
+  function playTrack(
+    track: MusicResult,
+    list?: MusicResult[],
+    index?: number
+  ) {
     const nextQueue = list ?? queue;
-    const nextIndex = index ?? nextQueue.findIndex((item) => item.id === track.id);
+    const nextIndex =
+      index ?? nextQueue.findIndex((item) => item.id === track.id);
+
     setQueue(nextQueue);
     setQueueIndex(nextIndex);
     setPlayer(track);
@@ -324,21 +384,21 @@ export default function Home() {
 
                     {message.results && message.results.length > 0 && (
                       <div className="music-grid">
-                        {message.results.map((track) => {
+                        {message.results.map((track, index) => {
                           const image =
                             track.artwork ||
-                            (track.videoId
-                              ? `https://i.ytimg.com/vi/${encodeURIComponent(
-                                  track.videoId
-                                )}/hqdefault.jpg`
-                              : "");
+                            `https://i.ytimg.com/vi/${encodeURIComponent(
+                              track.videoId || ""
+                            )}/hqdefault.jpg`;
 
                           return (
                             <article className="music-card" key={track.id}>
                               <button
                                 className="cover"
                                 type="button"
-                                onClick={() => playTrack(track, message.results, message.results.indexOf(track))}
+                                onClick={() =>
+                                  playTrack(track, message.results, index)
+                                }
                                 aria-label={"Reproducir " + track.title}
                               >
                                 {image ? (
@@ -395,28 +455,71 @@ export default function Home() {
         )}
       </section>
 
-      {player && (
+      {player?.videoId && (
         <div className="mini-player" role="region" aria-label="Reproductor">
           <div className="mini-player-art">
-            {player.artwork ? <img src={player.artwork} alt="" /> : <Music2 size={20} />}
+            {player.artwork ? (
+              <img src={player.artwork} alt="" />
+            ) : (
+              <Music2 size={20} />
+            )}
           </div>
+
           <div className="mini-player-info">
             <div className="mini-player-title">{player.title}</div>
             <div className="mini-player-artist">{player.artist}</div>
           </div>
+
           <div className="mini-player-actions">
-            <button type="button" aria-label="Anterior" title="Anterior" onClick={playPrevious} disabled={queueIndex <= 0}><SkipBack size={18} fill="currentColor" /></button>
-            <button type="button" className="mini-play" aria-label={isPlaying ? "Pausar" : "Reproducir"} title={isPlaying ? "Pausar" : "Reproducir"} onClick={togglePlayback}>
-              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+            <button
+              type="button"
+              aria-label="Anterior"
+              title="Anterior"
+              onClick={playPrevious}
+              disabled={queueIndex <= 0}
+            >
+              <SkipBack size={18} fill="currentColor" />
             </button>
-            <button type="button" aria-label="Siguiente" title="Siguiente" onClick={playNext} disabled={queueIndex < 0 || queueIndex >= queue.length - 1}><SkipForward size={18} fill="currentColor" /></button>
-            <button type="button" className="mini-close" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor" title="Cerrar"><X size={16} /></button>
+
+            <button
+              type="button"
+              className="mini-play"
+              aria-label={isPlaying ? "Pausar" : "Reproducir"}
+              title={isPlaying ? "Pausar" : "Reproducir"}
+              onClick={togglePlayback}
+            >
+              {isPlaying ? (
+                <Pause size={18} fill="currentColor" />
+              ) : (
+                <Play size={18} fill="currentColor" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              aria-label="Siguiente"
+              title="Siguiente"
+              onClick={playNext}
+              disabled={
+                queueIndex < 0 || queueIndex >= queue.length - 1
+              }
+            >
+              <SkipForward size={18} fill="currentColor" />
+            </button>
+
+            <button
+              type="button"
+              className="mini-close"
+              onClick={() => setPlayer(null)}
+              aria-label="Cerrar reproductor"
+              title="Cerrar"
+            >
+              <X size={16} />
+            </button>
           </div>
+
           <div className="mini-player-media">
-            <div ref={youtubeContainerRef} className={player.source === "youtube" ? "youtube-player-host" : "youtube-player-host hidden"} />
-            {player.source === "itunes" && player.previewUrl ? (
-              <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={playNext} />
-            ) : null}
+            <div ref={youtubeContainerRef} className="youtube-player-host" />
           </div>
         </div>
       )}

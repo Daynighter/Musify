@@ -231,8 +231,6 @@ export default function Home() {
     setCurrent(item);
     setPlaying(true);
 
-    // When the action starts from a user click, ask the embedded player
-    // to load and play immediately. This avoids losing the user gesture.
     if (player.current) {
       player.current.loadVideoById(item.videoId);
       player.current.playVideo();
@@ -386,7 +384,13 @@ export default function Home() {
 
       setChat((messages) => [...messages, assistantMessage]);
 
-      if (items.length) setCurrent(items[0]);
+      if (items.length) {
+        setQueue(items);
+        setCurrent(null);
+        setPlaying(false);
+        setProgress(0);
+        setDuration(0);
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 

@@ -1,6 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  ArrowUp,
+  Code2,
+  Gamepad2,
+  Loader2,
+  MoreHorizontal,
+  Music2,
+  Play,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 type MusicResult = {
   id: string;
@@ -20,57 +31,24 @@ type Message = {
   results?: MusicResult[];
 };
 
-const icons = {
-  plus: "M12 5v14M5 12h14",
-  play: "M8 5v14l11-7z",
-  music: "M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
-  search: "m21 21-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
-  gamepad: "M6 11h4m-2-2v4m8-2h.01M19 8h.01M7.8 18h8.4a3 3 0 0 0 2.85-2.06l1.35-4.05A4 4 0 0 0 16.6 6H7.4a4 4 0 0 0-3.8 5.89l1.35 4.05A3 3 0 0 0 7.8 18Z",
-  code: "m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14",
-  sparkles: "m12 3-1.2 4.1L7 8.3l3.8 1.2L12 14l1.2-4.5L17 8.3l-3.8-1.2L12 3Zm7 10-.7 2.3L16 16l2.3.7L19 19l.7-2.3L22 16l-2.3-.7L19 13Z",
-  arrow: "M5 12h14M13 6l6 6-6 6",
-  x: "M6 6l12 12M18 6 6 18",
-};
-
-function Icon({ path }: { path: string }) {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={path} /></svg>;
-}
-
-function ResultCard({ video, onPlay, onLike, liked }: { video: MusicResult; onPlay: () => void; onLike: () => void; liked: boolean }) {
-  const image = video.artwork || (video.videoId ? "https://i.ytimg.com/vi/" + encodeURIComponent(video.videoId) + "/hqdefault.jpg" : "");
-
-  return (
-    <article className="videoCard">
-      <button className="thumbnailButton" type="button" onClick={onPlay} aria-label={"Reproducir " + video.title}>
-        <img src={image} alt="" loading="lazy" />
-        <span className="playButton"><Icon path={icons.play} /></span>
-        <span className={"likeButton " + (liked ? "active" : "")} onClick={(event) => { event.stopPropagation(); onLike(); }} role="button" aria-label="Me gusta">
-          ♥
-        </span>
-      </button>
-      <div className="videoMeta">
-        <div className="videoTitle">{video.title}</div>
-        <div className="videoChannel">{video.artist}</div>
-        {video.album && <div className="videoChannel">{video.album}</div>}
-      </div>
-    </article>
-  );
-}
+const quickSearches = [
+  { label: "Música electrónica", query: "Música electrónica", icon: Music2 },
+  { label: "Pop actual", query: "Pop actual", icon: Sparkles },
+  { label: "Para estudiar", query: "Música para estudiar", icon: Code2 },
+  { label: "Bandas sonoras", query: "Bandas sonoras", icon: Gamepad2 },
+];
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [player, setPlayer] = useState<MusicResult | null>(null);
-  const [liked, setLiked] = useState<string[]>([]);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
+  useEffect(() => textareaRef.current?.focus(), []);
 
-  function autoResize() {
+  function resizeTextarea() {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
@@ -84,46 +62,61 @@ export default function Home() {
     setQuery("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setError("");
-    setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", text: clean }]);
+    setMessages((items) => [
+      ...items,
+      { id: crypto.randomUUID(), role: "user", text: clean },
+    ]);
     setLoading(true);
 
     try {
-      const response = await fetch("/api/music/search?q=" + encodeURIComponent(clean), {
-        headers: { Accept: "application/json" },
-      });
-      const data: { items?: MusicResult[]; error?: string } = await response.json();
+      const response = await fetch(
+        "/api/music/search?q=" + encodeURIComponent(clean),
+        { headers: { Accept: "application/json" } }
+      );
+      const data: { items?: MusicResult[]; error?: string } =
+        await response.json();
 
-      if (!response.ok || data.error) throw new Error(data.error || "El servidor respondió con " + response.status + ".");
+      if (!response.ok || data.error) {
+        throw new Error(
+          data.error || "No se pudo completar la búsqueda."
+        );
+      }
 
       const items = Array.isArray(data.items) ? data.items : [];
-      setMessages((m) => [
-        ...m,
+
+      setMessages((current) => [
+        ...current,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: items.length ? "Resultados para “" + clean + "”" : "No se encontraron canciones para esta búsqueda.",
+          text: items.length
+            ? `Resultados para “${clean}”`
+            : "No se encontraron canciones para esta búsqueda.",
           results: items,
         },
       ]);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudo completar la búsqueda.";
 
-      if (!items.length) setError("No se encontraron canciones para esta búsqueda.");
-    } catch (e) {
-      setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", text: e instanceof Error ? e.message : "No se pudo completar la búsqueda." }]);
+      setError(message);
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), role: "assistant", text: message },
+      ]);
     } finally {
       setLoading(false);
     }
   }
 
-  function submit(event: FormEvent) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void searchMusic();
   }
 
-  function toggleLiked(id: string) {
-    setLiked((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
-  }
-
-  function resetChat() {
+  function reset() {
     setMessages([]);
     setPlayer(null);
     setQuery("");
@@ -133,88 +126,182 @@ export default function Home() {
   }
 
   return (
-    <div className="app">
+    <main className="app">
       <header className="topbar">
-        <div className="topbarTitle">Tu música</div>
-        <div className="topbarSide">
-          <button className="iconButton" type="button" onClick={resetChat} aria-label="Nuevo chat" title="Nuevo chat">
-            <Icon path={icons.plus} />
+        <div className="topbar-side">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={reset}
+            aria-label="Nuevo chat"
+            title="Nuevo chat"
+          >
+            <span className="plus-icon">+</span>
           </button>
         </div>
-        <div className="brand"><span>Musify</span></div>
-        <div className="topbarSide right">
-          <button className="iconButton" type="button" onClick={resetChat} aria-label="Limpiar chat" title="Limpiar chat">
-            <span className="moreDots">•••</span>
+
+        <div className="brand">Musify</div>
+
+        <div className="topbar-side right">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={reset}
+            aria-label="Limpiar"
+            title="Limpiar"
+          >
+            <MoreHorizontal size={19} />
           </button>
         </div>
       </header>
 
-      <main>
-        <section className="chat">
-          {!messages.length ? (
-            <div className="emptyState">
-              <div className="emptyIcon"><Icon path={icons.music} /></div>
-              <h1>¿Qué quieres escuchar?</h1>
-              <p>Busca canciones, artistas, álbumes o estilos y explora sus carátulas directamente dentro de esta conversación.</p>
-              <div className="quickActions">
-                <button className="quickAction" type="button" onClick={() => void searchMusic("Música electrónica")}><Icon path={icons.music} /><span>Música electrónica</span></button>
-                <button className="quickAction" type="button" onClick={() => void searchMusic("Pop actual")}><Icon path={icons.sparkles} /><span>Pop actual</span></button>
-                <button className="quickAction" type="button" onClick={() => void searchMusic("Música para estudiar")}><Icon path={icons.code} /><span>Para estudiar</span></button>
-                <button className="quickAction" type="button" onClick={() => void searchMusic("Bandas sonoras")}><Icon path={icons.gamepad} /><span>Bandas sonoras</span></button>
-              </div>
+      <section className="chat">
+        {!messages.length ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Music2 size={23} />
             </div>
-          ) : (
-            <div className="messages">
-              {messages.map((message) => (
-                <div className={"message " + message.role} key={message.id}>
-                  {message.role === "user" ? (
-                    <div className="userBubble">{message.text}</div>
-                  ) : (
-                    <div className="assistant">
-                      <div className="assistantLabel">
-                        <div className="assistantLabelMark"><Icon path={icons.music} /></div>
-                        <span>Musify</span>
-                      </div>
-                      <div className="assistantText">{message.text}</div>
-                      {message.results && message.results.length > 0 && (
-                        <div className="resultsGrid">
-                          {message.results.map((video) => (
-                            <ResultCard key={video.id} video={video} liked={liked.includes(video.id)} onLike={() => toggleLiked(video.id)} onPlay={() => setPlayer(video)} />
-                          ))}
-                        </div>
-                      )}
+
+            <h1>¿Qué quieres escuchar?</h1>
+
+            <p>
+              Busca canciones, artistas, álbumes o estilos y explora sus
+              carátulas directamente dentro de esta conversación.
+            </p>
+
+            <div className="quick-actions">
+              {quickSearches.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.query}
+                    className="quick-action"
+                    type="button"
+                    onClick={() => void searchMusic(item.query)}
+                  >
+                    <Icon size={17} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="conversation">
+            {messages.map((message) => (
+              <div className={"message " + message.role} key={message.id}>
+                {message.role === "user" ? (
+                  <div className="user-bubble">{message.text}</div>
+                ) : (
+                  <div className="assistant-message">
+                    <div className="assistant-label">
+                      <span className="assistant-dot">M</span>
+                      <span>Musify</span>
                     </div>
-                  )}
-                </div>
-              ))}
-              {loading && (
-                <div className="message assistant">
-                  <div className="assistantLabel">
-                    <div className="assistantLabelMark"><Icon path={icons.music} /></div>
-                    <span>Buscando en Musify</span>
+
+                    <div className="assistant-text">{message.text}</div>
+
+                    {message.results && message.results.length > 0 && (
+                      <div className="music-grid">
+                        {message.results.map((track) => {
+                          const image =
+                            track.artwork ||
+                            (track.videoId
+                              ? `https://i.ytimg.com/vi/${encodeURIComponent(
+                                  track.videoId
+                                )}/hqdefault.jpg`
+                              : "");
+
+                          return (
+                            <article className="music-card" key={track.id}>
+                              <button
+                                className="cover"
+                                type="button"
+                                onClick={() => setPlayer(track)}
+                                aria-label={"Reproducir " + track.title}
+                              >
+                                {image ? (
+                                  <img
+                                    src={image}
+                                    alt=""
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="cover-fallback">
+                                    <Music2 size={32} />
+                                  </span>
+                                )}
+
+                                <span className="play-button">
+                                  <Play size={18} fill="currentColor" />
+                                </span>
+                              </button>
+
+                              <div className="track-info">
+                                <div className="track-title">{track.title}</div>
+                                <div className="track-artist">{track.artist}</div>
+                                {track.album && (
+                                  <div className="track-album">{track.album}</div>
+                                )}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="loading"><i /><i /><i /></div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div className="message assistant">
+                <div className="assistant-message">
+                  <div className="assistant-label">
+                    <span className="assistant-dot">M</span>
+                    <span>Buscando música...</span>
+                  </div>
+                  <div className="loading">
+                    <Loader2 size={17} className="spin" />
+                    <span>Buscando resultados</span>
+                  </div>
                 </div>
-              )}
-              {error && <div className="error">{error}</div>}
-            </div>
-          )}
-        </section>
-      </main>
+              </div>
+            )}
+
+            {error && <div className="error">{error}</div>}
+          </div>
+        )}
+      </section>
 
       {player && (
-        <div className="playerMessage">
-          <div className="playerCard">
-            <div className="playerHeader">
-              <div className="playerTitle">{player.title} · {player.artist}</div>
-              <button className="playerClose" type="button" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor"><Icon path={icons.x} /></button>
+        <div className="player-message">
+          <div className="player">
+            <div className="player-header">
+              <div className="player-name">
+                {player.title} · {player.artist}
+              </div>
+
+              <button
+                className="player-close"
+                type="button"
+                onClick={() => setPlayer(null)}
+                aria-label="Cerrar reproductor"
+              >
+                <X size={17} />
+              </button>
             </div>
-            <div className="playerFrame">
+
+            <div className="player-frame">
               {player.source === "itunes" && player.previewUrl ? (
                 <audio src={player.previewUrl} controls autoPlay playsInline />
               ) : player.videoId ? (
                 <iframe
-                  src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&rel=0&modestbranding=1"}
+                  src={
+                    "https://www.youtube.com/embed/" +
+                    encodeURIComponent(player.videoId) +
+                    "?autoplay=1&rel=0&modestbranding=1"
+                  }
                   title={player.title}
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
@@ -225,16 +312,19 @@ export default function Home() {
         </div>
       )}
 
-      <div className="composerArea">
-        <div className="composerWrap">
+      <div className="composer-area">
+        <div className="composer-wrapper">
           <form className="composer" onSubmit={submit}>
             <textarea
               ref={textareaRef}
               value={query}
-              onChange={(e) => { setQuery(e.target.value); autoResize(); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
+              onChange={(event) => {
+                setQuery(event.target.value);
+                resizeTextarea();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
                   void searchMusic();
                 }
               }}
@@ -243,13 +333,20 @@ export default function Home() {
               placeholder="Busca una canción o artista..."
               aria-label="Buscar música"
             />
-            <button className="sendButton" type="submit" disabled={loading || !query.trim()} aria-label="Buscar">
-              <Icon path={icons.arrow} />
+
+            <button
+              className="send-button"
+              type="submit"
+              disabled={loading || !query.trim()}
+              aria-label="Buscar"
+            >
+              <ArrowUp size={18} />
             </button>
           </form>
-          <div className="composerHint">Musify · búsqueda musical</div>
+
+          <div className="composer-hint">Musify · búsqueda musical</div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

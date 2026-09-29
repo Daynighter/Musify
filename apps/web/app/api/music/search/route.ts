@@ -9,7 +9,7 @@ type MusicItem = { videoId: string; title: string; artist: string; album?: strin
 let clientPromise: Promise<Innertube> | undefined;
 
 function getClient() {
-  clientPromise ??= Innertube.create();
+  clientPromise ??= Innertube.create({\n    player_id: "0004de42",\n    lang: "es",\n    location: "ES",\n  });
   return clientPromise;
 }
 

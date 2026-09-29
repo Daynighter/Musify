@@ -46,6 +46,8 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [player, setPlayer] = useState<MusicResult | null>(null);
+  const [queue, setQueue] = useState<MusicResult[]>([]);
+  const [queueIndex, setQueueIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(true);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,9 +122,30 @@ export default function Home() {
     void searchMusic();
   }
 
+  function playTrack(track: MusicResult, list?: MusicResult[], index?: number) {
+    const nextQueue = list ?? queue;
+    const nextIndex = index ?? nextQueue.findIndex((item) => item.id === track.id);
+    setQueue(nextQueue);
+    setQueueIndex(nextIndex);
+    setPlayer(track);
+    setIsPlaying(true);
+  }
+
+  function playPrevious() {
+    if (!queue.length || queueIndex <= 0) return;
+    playTrack(queue[queueIndex - 1], queue, queueIndex - 1);
+  }
+
+  function playNext() {
+    if (!queue.length || queueIndex >= queue.length - 1) return;
+    playTrack(queue[queueIndex + 1], queue, queueIndex + 1);
+  }
+
   function reset() {
     setMessages([]);
     setPlayer(null);
+    setQueue([]);
+    setQueueIndex(-1);
     setQuery("");
     setError("");
     setLoading(false);
@@ -221,7 +244,7 @@ export default function Home() {
                               <button
                                 className="cover"
                                 type="button"
-                                onClick={() => setPlayer(track)}
+                                onClick={() => playTrack(track, message.results, message.results.indexOf(track))
                                 aria-label={"Reproducir " + track.title}
                               >
                                 {image ? (
@@ -288,16 +311,16 @@ export default function Home() {
             <div className="mini-player-artist">{player.artist}</div>
           </div>
           <div className="mini-player-actions">
-            <button type="button" aria-label="Anterior" title="Anterior"><SkipBack size={18} fill="currentColor" /></button>
+            <button type="button" aria-label="Anterior" title="Anterior" onClick={playPrevious} disabled={queueIndex <= 0}><SkipBack size={18} fill="currentColor" /></button>
             <button type="button" className="mini-play" aria-label={isPlaying ? "Pausar" : "Reproducir"} title={isPlaying ? "Pausar" : "Reproducir"}>
               {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
             </button>
-            <button type="button" aria-label="Siguiente" title="Siguiente"><SkipForward size={18} fill="currentColor" /></button>
+            <button type="button" aria-label="Siguiente" title="Siguiente" onClick={playNext} disabled={queueIndex < 0 || queueIndex >= queue.length - 1}><SkipForward size={18} fill="currentColor" /></button>
             <button type="button" className="mini-close" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor" title="Cerrar"><X size={16} /></button>
           </div>
           <div className="mini-player-media">
             {player.source === "itunes" && player.previewUrl ? (
-              <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+              <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={playNext} />
             ) : player.videoId ? (
               <iframe src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&controls=1&rel=0&playsinline=1"} title={player.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
             ) : null}

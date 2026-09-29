@@ -61,6 +61,7 @@ export default function Home() {
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
   const youtubeReadyRef = useRef(false);
   const youtubeContainerRef = useRef<HTMLDivElement>(null);
+  const playNextRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -87,7 +88,7 @@ export default function Home() {
           onStateChange: (event: { data: number }) => {
             if (event.data === 1) setIsPlaying(true);
             if (event.data === 2) setIsPlaying(false);
-            if (event.data === 0) playNext();
+            if (event.data === 0) playNextRef.current();
           },
         },
       });
@@ -205,6 +206,10 @@ export default function Home() {
     if (!queue.length || queueIndex >= queue.length - 1) return;
     playTrack(queue[queueIndex + 1], queue, queueIndex + 1);
   }
+
+  useEffect(() => {
+    playNextRef.current = playNext;
+  });
 
   function reset() {
     setMessages([]);

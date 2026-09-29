@@ -126,6 +126,7 @@ export default function Home() {
       return;
     }
 
+    const videoId = player.videoId;
     let cancelled = false;
 
     async function mountPlayer() {
@@ -164,9 +165,7 @@ export default function Home() {
           events: {
             onReady: () => {
               youtubeReadyRef.current = true;
-              if (player.videoId) {
-                youtubePlayerRef.current?.loadVideoById(player.videoId);
-              }
+              youtubePlayerRef.current?.loadVideoById(videoId);
             },
             onStateChange: (event) => {
               if (event.data === 1) setIsPlaying(true);

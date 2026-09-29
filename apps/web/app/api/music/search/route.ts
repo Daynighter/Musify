@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       );
 
       const videoSearch = await yt.search(q, { type: "video" });
-      contents = videoSearch.videos?.contents ?? [];
+      contents = Array.from(videoSearch.videos ?? []);
     }
 
     const items: MusicItem[] = contents

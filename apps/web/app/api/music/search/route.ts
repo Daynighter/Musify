@@ -89,27 +89,28 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ items: [] });
 
-  // iTunes es la fuente principal: devuelve canciones reales, carátulas y
-  // previews de audio. No añadimos banners ni SDKs publicitarios.
-  try {
-    const items = await searchITunes(q);
-    if (items.length) return NextResponse.json({ items });
-  } catch (error) {
-    console.warn("Musify iTunes search failed; trying YouTube Music:", error);
-  }
-
-  // Respaldo: si iTunes no tiene resultados, usamos YouTube Music.
+  // YouTube Music es la fuente principal: las tarjetas representan canciones
+  // encontradas en YouTube y se reproducen mediante el reproductor oficial embebido.
   try {
     const yt = await getClient();
     const musicSearch = await yt.music.search(q, { type: "song" });
     const items = (musicSearch.songs?.contents ?? [])
       .map(normalizeYouTube)
       .filter((item): item is MusicItem => Boolean(item))
-      .slice(0, 20);
+      .slice(0, 24);
 
+    if (items.length) return NextResponse.json({ items });
+  } catch (error) {
+    console.warn("Mfly YouTube Music search failed; trying iTunes:", error);
+  }
+
+  // Respaldo: iTunes aporta carátulas y previews de audio cuando YouTube Music
+  // no devuelve resultados.
+  try {
+    const items = await searchITunes(q);
     return NextResponse.json({ items });
   } catch (error) {
-    console.error("Musify music search failed:", error);
+    console.error("Mfly music search failed:", error);
     return NextResponse.json({ error: "Music provider is unavailable", items: [] }, { status: 502 });
   }
 }

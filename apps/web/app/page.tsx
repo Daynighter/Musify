@@ -36,7 +36,7 @@ function Icon({ path }: { path: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={path} /></svg>;
 }
 
-function ResultCard({ video, onPlay }: { video: MusicResult; onPlay: () => void }) {
+function ResultCard({ video, onPlay, onLike, liked }: { video: MusicResult; onPlay: () => void; onLike: () => void; liked: boolean }) {
   const image = video.artwork || (video.videoId ? "https://i.ytimg.com/vi/" + encodeURIComponent(video.videoId) + "/hqdefault.jpg" : "");
 
   return (
@@ -44,6 +44,9 @@ function ResultCard({ video, onPlay }: { video: MusicResult; onPlay: () => void 
       <button className="thumbnailButton" type="button" onClick={onPlay} aria-label={"Reproducir " + video.title}>
         <img src={image} alt="" loading="lazy" />
         <span className="playButton"><Icon path={icons.play} /></span>
+        <span className={"likeButton " + (liked ? "active" : "")} onClick={(event) => { event.stopPropagation(); onLike(); }} role="button" aria-label="Me gusta">
+          ♥
+        </span>
       </button>
       <div className="videoMeta">
         <div className="videoTitle">{video.title}</div>
@@ -59,6 +62,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [player, setPlayer] = useState<MusicResult | null>(null);
+  const [liked, setLiked] = useState<string[]>([]);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -115,6 +119,10 @@ export default function Home() {
     void searchMusic();
   }
 
+  function toggleLiked(id: string) {
+    setLiked((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
+  }
+
   function resetChat() {
     setMessages([]);
     setPlayer(null);
@@ -127,6 +135,7 @@ export default function Home() {
   return (
     <div className="app">
       <header className="topbar">
+        <div className="topbarTitle">Tu música</div>
         <div className="topbarSide">
           <button className="iconButton" type="button" onClick={resetChat} aria-label="Nuevo chat" title="Nuevo chat">
             <Icon path={icons.plus} />
@@ -170,7 +179,7 @@ export default function Home() {
                       {message.results && message.results.length > 0 && (
                         <div className="resultsGrid">
                           {message.results.map((video) => (
-                            <ResultCard key={video.id} video={video} onPlay={() => setPlayer(video)} />
+                            <ResultCard key={video.id} video={video} liked={liked.includes(video.id)} onLike={() => toggleLiked(video.id)} onPlay={() => setPlayer(video)} />
                           ))}
                         </div>
                       )}

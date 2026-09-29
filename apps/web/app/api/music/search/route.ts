@@ -16,7 +16,6 @@ let clientPromise: Promise<Innertube> | undefined;
 
 function getClient() {
   clientPromise ??= Innertube.create({
-    player_id: "0004de42",
     lang: "es",
     location: "ES",
   });
@@ -26,11 +25,11 @@ function getClient() {
 
 function getBestArtwork(song: any): string | undefined {
   const thumbnails = [
-    ...(song.thumbnails ?? []),
-    ...(song.thumbnail ?? []),
+    ...(song?.thumbnails ?? []),
+    ...(song?.thumbnail ?? []),
   ].filter((item: any) => item?.url);
 
-  const urls = thumbnails.map((item: any) => item.url as string);
+  const urls = thumbnails.map((item: any) => String(item.url));
   const source =
     urls.find((url) =>
       /maxresdefault|w1200|w1000|w800|w600|w500|w400|sddefault/i.test(url),
@@ -45,6 +44,39 @@ function getBestArtwork(song: any): string | undefined {
     .replace(/([?&])h=\d+(&w=\d+)?/i, "$1h=1200");
 }
 
+function getArtist(song: any) {
+  if (Array.isArray(song?.artists)) {
+    const artists = song.artists
+      .map((artist: any) => artist?.name)
+      .filter(Boolean)
+      .join(", ");
+
+    if (artists) return artists;
+  }
+
+  return (
+    song?.author?.name ||
+    song?.owner?.name ||
+    song?.channel?.name ||
+    "YouTube Music"
+  );
+}
+
+function normalizeSong(song: any): MusicItem | null {
+  const videoId = song?.id;
+  const title = song?.title;
+
+  if (!videoId || !title) return null;
+
+  return {
+    videoId: String(videoId),
+    title: String(title),
+    artist: getArtist(song),
+    album: song?.album?.name,
+    artwork: getBestArtwork(song),
+  };
+}
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
@@ -54,39 +86,40 @@ export async function GET(req: NextRequest) {
 
   try {
     const yt = await getClient();
-    let contents: any[] = [];
 
-    try {
-      const musicSearch = await yt.music.search(q, { type: "song" });
-      contents = musicSearch.songs?.contents ?? [];
-    } catch (musicError) {
-      console.warn(
-        "Mfly YouTube Music search failed, falling back to YouTube video search:",
-        musicError,
-      );
+    // Primero buscamos en YouTube Music filtrando específicamente por canciones.
+    // youtubei.js expone las canciones como MusicShelf.contents.
+    const musicSearch = await yt.music.search(q, { type: "song" });
+    let items = (musicSearch.songs?.contents ?? [])
+      .map(normalizeSong)
+      .filter((item): item is MusicItem => Boolean(item));
 
+    // Si YouTube Music no devuelve canciones, usamos la búsqueda general como
+    // respaldo para no dejar la cuadrícula vacía.
+    if (!items.length) {
       const videoSearch = await yt.search(q, { type: "video" });
-      contents = Array.from(videoSearch.videos ?? []);
+      items = Array.from(videoSearch.videos ?? [])
+        .map((video: any) => ({
+          videoId: String(video.id ?? ""),
+          title: String(video.title ?? "Sin título"),
+          artist:
+            video.author?.name ||
+            video.owner?.name ||
+            video.channel?.name ||
+            "YouTube",
+          artwork: getBestArtwork(video),
+        }))
+        .filter((item: MusicItem) => Boolean(item.videoId));
     }
 
-    const items: MusicItem[] = contents
-      .map((song: any) => ({
-        videoId: song.id,
-        title: song.title ?? "Sin título",
-        artist:
-          song.artists?.map((artist: any) => artist.name).join(", ") ||
-          song.author?.name ||
-          song.owner?.name ||
-          "YouTube",
-        album: song.album?.name,
-        artwork: getBestArtwork(song),
-      }))
-      .filter((item: MusicItem) => Boolean(item.videoId))
-      .slice(0, 20);
+    // Evitamos duplicados y mantenemos una cuadrícula manejable.
+    const unique = Array.from(
+      new Map(items.map((item) => [item.videoId, item])).values(),
+    ).slice(0, 20);
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items: unique });
   } catch (error) {
-    console.error("Mfly InnerTube search failed:", error);
+    console.error("Musify music search failed:", error);
 
     return NextResponse.json(
       { error: "Music provider is unavailable", items: [] },

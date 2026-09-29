@@ -5,38 +5,28 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type MusicItem = {
-  videoId: string;
+  id: string;
+  videoId?: string;
   title: string;
   artist: string;
   album?: string;
   artwork?: string;
+  previewUrl?: string;
+  source: "itunes" | "youtube";
 };
 
 let clientPromise: Promise<Innertube> | undefined;
 
 function getClient() {
-  clientPromise ??= Innertube.create({
-    lang: "es",
-    location: "ES",
-  });
-
+  clientPromise ??= Innertube.create({ lang: "es", location: "ES" });
   return clientPromise;
 }
 
 function getBestArtwork(song: any): string | undefined {
-  const thumbnails = [
-    ...(song?.thumbnails ?? []),
-    ...(song?.thumbnail ?? []),
-  ].filter((item: any) => item?.url);
-
+  const thumbnails = [...(song?.thumbnails ?? []), ...(song?.thumbnail ?? [])].filter((item: any) => item?.url);
   const urls = thumbnails.map((item: any) => String(item.url));
-  const source =
-    urls.find((url) =>
-      /maxresdefault|w1200|w1000|w800|w600|w500|w400|sddefault/i.test(url),
-    ) ?? urls[urls.length - 1];
-
+  const source = urls.find((url) => /maxresdefault|w1200|w1000|w800|w600|w500|w400|sddefault/i.test(url)) ?? urls[urls.length - 1];
   if (!source) return undefined;
-
   return source
     .replace(/=w\d+-h\d+[^&]*/i, "=w1200-h1200-l90-rj")
     .replace(/=s\d+[^&]*/i, "=s1200")
@@ -46,84 +36,80 @@ function getBestArtwork(song: any): string | undefined {
 
 function getArtist(song: any) {
   if (Array.isArray(song?.artists)) {
-    const artists = song.artists
-      .map((artist: any) => artist?.name)
-      .filter(Boolean)
-      .join(", ");
-
+    const artists = song.artists.map((artist: any) => artist?.name).filter(Boolean).join(", ");
     if (artists) return artists;
   }
-
-  return (
-    song?.author?.name ||
-    song?.owner?.name ||
-    song?.channel?.name ||
-    "YouTube Music"
-  );
+  return song?.author?.name || song?.owner?.name || song?.channel?.name || "YouTube Music";
 }
 
-function normalizeSong(song: any): MusicItem | null {
+async function searchITunes(q: string): Promise<MusicItem[]> {
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", q);
+  url.searchParams.set("media", "music");
+  url.searchParams.set("entity", "song");
+  url.searchParams.set("country", "ES");
+  url.searchParams.set("limit", "24");
+  url.searchParams.set("lang", "es_es");
+
+  const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+  if (!response.ok) throw new Error("iTunes Search API returned " + response.status);
+
+  const data = (await response.json()) as { results?: any[] };
+
+  return (data.results ?? [])
+    .filter((track) => track?.trackId && track?.trackName && track?.artworkUrl100)
+    .map((track) => ({
+      id: String(track.trackId),
+      title: String(track.trackName),
+      artist: String(track.artistName ?? "Artista desconocido"),
+      album: track.collectionName ? String(track.collectionName) : undefined,
+      artwork: String(track.artworkUrl100).replace("100x100bb", "1200x1200bb"),
+      previewUrl: track.previewUrl ? String(track.previewUrl) : undefined,
+      source: "itunes" as const,
+    }))
+    .filter((item) => Boolean(item.previewUrl));
+}
+
+function normalizeYouTube(song: any): MusicItem | null {
   const videoId = song?.id;
   const title = song?.title;
-
   if (!videoId || !title) return null;
-
   return {
+    id: String(videoId),
     videoId: String(videoId),
     title: String(title),
     artist: getArtist(song),
     album: song?.album?.name,
     artwork: getBestArtwork(song),
+    source: "youtube",
   };
 }
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
+  if (!q) return NextResponse.json({ items: [] });
 
-  if (!q) {
-    return NextResponse.json({ items: [] });
+  // iTunes es la fuente principal: devuelve canciones reales, carátulas y
+  // previews de audio. No añadimos banners ni SDKs publicitarios.
+  try {
+    const items = await searchITunes(q);
+    if (items.length) return NextResponse.json({ items });
+  } catch (error) {
+    console.warn("Musify iTunes search failed; trying YouTube Music:", error);
   }
 
+  // Respaldo: si iTunes no tiene resultados, usamos YouTube Music.
   try {
     const yt = await getClient();
-
-    // Primero buscamos en YouTube Music filtrando específicamente por canciones.
-    // youtubei.js expone las canciones como MusicShelf.contents.
     const musicSearch = await yt.music.search(q, { type: "song" });
-    let items = (musicSearch.songs?.contents ?? [])
-      .map(normalizeSong)
-      .filter((item): item is MusicItem => Boolean(item));
+    const items = (musicSearch.songs?.contents ?? [])
+      .map(normalizeYouTube)
+      .filter((item): item is MusicItem => Boolean(item))
+      .slice(0, 20);
 
-    // Si YouTube Music no devuelve canciones, usamos la búsqueda general como
-    // respaldo para no dejar la cuadrícula vacía.
-    if (!items.length) {
-      const videoSearch = await yt.search(q, { type: "video" });
-      items = Array.from(videoSearch.videos ?? [])
-        .map((video: any) => ({
-          videoId: String(video.id ?? ""),
-          title: String(video.title ?? "Sin título"),
-          artist:
-            video.author?.name ||
-            video.owner?.name ||
-            video.channel?.name ||
-            "YouTube",
-          artwork: getBestArtwork(video),
-        }))
-        .filter((item: MusicItem) => Boolean(item.videoId));
-    }
-
-    // Evitamos duplicados y mantenemos una cuadrícula manejable.
-    const unique = Array.from(
-      new Map(items.map((item) => [item.videoId, item])).values(),
-    ).slice(0, 20);
-
-    return NextResponse.json({ items: unique });
+    return NextResponse.json({ items });
   } catch (error) {
     console.error("Musify music search failed:", error);
-
-    return NextResponse.json(
-      { error: "Music provider is unavailable", items: [] },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: "Music provider is unavailable", items: [] }, { status: 502 });
   }
 }

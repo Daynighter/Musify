@@ -9,6 +9,9 @@ import {
   MoreHorizontal,
   Music2,
   Play,
+  Pause,
+  SkipBack,
+  SkipForward,
   Sparkles,
   X,
 } from "lucide-react";
@@ -43,6 +46,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [player, setPlayer] = useState<MusicResult | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -275,39 +279,28 @@ export default function Home() {
       </section>
 
       {player && (
-        <div className="player-message">
-          <div className="player">
-            <div className="player-header">
-              <div className="player-name">
-                {player.title} · {player.artist}
-              </div>
-
-              <button
-                className="player-close"
-                type="button"
-                onClick={() => setPlayer(null)}
-                aria-label="Cerrar reproductor"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            <div className="player-frame">
-              {player.source === "itunes" && player.previewUrl ? (
-                <audio src={player.previewUrl} controls autoPlay playsInline />
-              ) : player.videoId ? (
-                <iframe
-                  src={
-                    "https://www.youtube.com/embed/" +
-                    encodeURIComponent(player.videoId) +
-                    "?autoplay=1&rel=0&modestbranding=1"
-                  }
-                  title={player.title}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : null}
-            </div>
+        <div className="mini-player" role="region" aria-label="Reproductor">
+          <div className="mini-player-art">
+            {player.artwork ? <img src={player.artwork} alt="" /> : <Music2 size={20} />}
+          </div>
+          <div className="mini-player-info">
+            <div className="mini-player-title">{player.title}</div>
+            <div className="mini-player-artist">{player.artist}</div>
+          </div>
+          <div className="mini-player-actions">
+            <button type="button" aria-label="Anterior" title="Anterior"><SkipBack size={18} fill="currentColor" /></button>
+            <button type="button" className="mini-play" aria-label={isPlaying ? "Pausar" : "Reproducir"} title={isPlaying ? "Pausar" : "Reproducir"}>
+              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+            </button>
+            <button type="button" aria-label="Siguiente" title="Siguiente"><SkipForward size={18} fill="currentColor" /></button>
+            <button type="button" className="mini-close" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor" title="Cerrar"><X size={16} /></button>
+          </div>
+          <div className="mini-player-media">
+            {player.source === "itunes" && player.previewUrl ? (
+              <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+            ) : player.videoId ? (
+              <iframe src={"https://www.youtube.com/embed/" + encodeURIComponent(player.videoId) + "?autoplay=1&controls=1&rel=0&playsinline=1"} title={player.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+            ) : null}
           </div>
         </div>
       )}

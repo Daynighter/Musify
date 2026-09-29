@@ -27,6 +27,13 @@ type MusicResult = {
   source: "itunes" | "youtube";
 };
 
+type YouTubePlayer = {
+  loadVideoById: (videoId: string) => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  destroy?: () => void;
+};
+
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -51,8 +58,66 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
+  const youtubeReadyRef = useRef(false);
+  const youtubeContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => textareaRef.current?.focus(), []);
+  useEffect(() => {
+    textareaRef.current?.focus();
+
+    const w = window as Window & {
+      YT?: { Player: new (element: HTMLElement, options: any) => YouTubePlayer };
+      onYouTubeIframeAPIReady?: () => void;
+    };
+
+    const createPlayer = () => {
+      if (!youtubeContainerRef.current || !w.YT?.Player) return;
+      youtubePlayerRef.current?.destroy?.();
+      youtubePlayerRef.current = new w.YT.Player(youtubeContainerRef.current, {
+        width: "200",
+        height: "200",
+        playerVars: { playsinline: 1, controls: 1, rel: 0 },
+        events: {
+          onReady: () => {
+            youtubeReadyRef.current = true;
+            if (player?.videoId) {
+              youtubePlayerRef.current?.loadVideoById(player.videoId);
+            }
+          },
+          onStateChange: (event: { data: number }) => {
+            if (event.data === 1) setIsPlaying(true);
+            if (event.data === 2) setIsPlaying(false);
+            if (event.data === 0) playNext();
+          },
+        },
+      });
+    };
+
+    if (!document.querySelector('script[data-youtube-iframe-api]')) {
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      script.dataset.youtubeIframeApi = "true";
+      w.onYouTubeIframeAPIReady = createPlayer;
+      document.head.appendChild(script);
+    } else if (w.YT?.Player) {
+      createPlayer();
+    } else {
+      w.onYouTubeIframeAPIReady = createPlayer;
+    }
+
+    return () => {
+      youtubePlayerRef.current?.destroy?.();
+      youtubePlayerRef.current = null;
+      youtubeReadyRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!player?.videoId || !youtubeReadyRef.current) return;
+    youtubePlayerRef.current?.loadVideoById(player.videoId);
+    setIsPlaying(true);
+  }, [player?.videoId]);
 
   function resizeTextarea() {
     const el = textareaRef.current;
@@ -319,6 +384,7 @@ export default function Home() {
             <button type="button" className="mini-close" onClick={() => setPlayer(null)} aria-label="Cerrar reproductor" title="Cerrar"><X size={16} /></button>
           </div>
           <div className="mini-player-media">
+            <div ref={youtubeContainerRef} className={player.source === "youtube" ? "youtube-player-host" : "youtube-player-host hidden"} />
             {player.source === "itunes" && player.previewUrl ? (
               <audio src={player.previewUrl} controls autoPlay playsInline onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={playNext} />
             ) : player.videoId ? (

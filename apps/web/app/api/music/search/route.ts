@@ -4,12 +4,23 @@ import { Innertube } from "youtubei.js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type MusicItem = { videoId: string; title: string; artist: string; album?: string; artwork?: string };
+type MusicItem = {
+  videoId: string;
+  title: string;
+  artist: string;
+  album?: string;
+  artwork?: string;
+};
 
 let clientPromise: Promise<Innertube> | undefined;
 
 function getClient() {
-  clientPromise ??= Innertube.create({\n    player_id: "0004de42",\n    lang: "es",\n    location: "ES",\n  });
+  clientPromise ??= Innertube.create({
+    player_id: "0004de42",
+    lang: "es",
+    location: "ES",
+  });
+
   return clientPromise;
 }
 
@@ -21,8 +32,9 @@ function getBestArtwork(song: any): string | undefined {
 
   const urls = thumbnails.map((item: any) => item.url as string);
   const source =
-    urls.find((url) => /maxresdefault|w1200|w1000|w800|w600|w500|w400|sddefault/i.test(url)) ??
-    urls[urls.length - 1];
+    urls.find((url) =>
+      /maxresdefault|w1200|w1000|w800|w600|w500|w400|sddefault/i.test(url),
+    ) ?? urls[urls.length - 1];
 
   if (!source) return undefined;
 
@@ -35,7 +47,10 @@ function getBestArtwork(song: any): string | undefined {
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
-  if (!q) return NextResponse.json({ items: [] });
+
+  if (!q) {
+    return NextResponse.json({ items: [] });
+  }
 
   try {
     const yt = await getClient();
@@ -45,7 +60,11 @@ export async function GET(req: NextRequest) {
       const musicSearch = await yt.music.search(q, { type: "song" });
       contents = musicSearch.songs?.contents ?? [];
     } catch (musicError) {
-      console.warn("Mfly YouTube Music search failed, falling back to YouTube video search:", musicError);
+      console.warn(
+        "Mfly YouTube Music search failed, falling back to YouTube video search:",
+        musicError,
+      );
+
       const videoSearch = await yt.search(q, { type: "video" });
       contents = videoSearch.videos?.contents ?? [];
     }
@@ -68,6 +87,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items });
   } catch (error) {
     console.error("Mfly InnerTube search failed:", error);
-    return NextResponse.json({ error: "Music provider is unavailable", items: [] }, { status: 502 });
+
+    return NextResponse.json(
+      { error: "Music provider is unavailable", items: [] },
+      { status: 502 },
+    );
   }
 }

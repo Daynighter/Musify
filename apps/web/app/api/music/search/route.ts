@@ -39,8 +39,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const yt = await getClient();
-    const search = await yt.music.search(q, { type: "song" });
-    const contents = search.songs?.contents ?? [];
+    let contents: any[] = [];
+
+    try {
+      const musicSearch = await yt.music.search(q, { type: "song" });
+      contents = musicSearch.songs?.contents ?? [];
+    } catch (musicError) {
+      console.warn("Mfly YouTube Music search failed, falling back to YouTube video search:", musicError);
+      const videoSearch = await yt.search(q, { type: "video" });
+      contents = videoSearch.videos?.contents ?? [];
+    }
 
     const items: MusicItem[] = contents
       .map((song: any) => ({
@@ -49,7 +57,8 @@ export async function GET(req: NextRequest) {
         artist:
           song.artists?.map((artist: any) => artist.name).join(", ") ||
           song.author?.name ||
-          "YouTube Music",
+          song.owner?.name ||
+          "YouTube",
         album: song.album?.name,
         artwork: getBestArtwork(song),
       }))

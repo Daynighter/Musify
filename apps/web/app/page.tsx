@@ -41,11 +41,15 @@ const ICONS = {
   play: "M8 5v14l11-7z",
   pause: "M8 6h3v12H8zM13 6h3v12h-3z",
   menu: "M4 6h16M4 12h16M4 18h16",
-  settings: "M12 3v2M12 19v2M3 12h2M19 12h2",
+  more: "M6 12h.01M12 12h.01M18 12h.01",
+  music: "M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   previous: "M6 6v12M18 6l-8 6 8 6z",
   next: "M18 6v12M6 6l8 6-8 6z",
   send: "M5 12l5 5L20 7",
-  share: "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14",
+  search: "m21 21-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
+  gamepad: "M6 11h4m-2-2v4m8-2h.01M19 8h.01M7.8 18h8.4a3 3 0 0 0 2.85-2.06l1.35-4.05A4 4 0 0 0 16.6 6H7.4a4 4 0 0 0-3.8 5.89l1.35 4.05A3 3 0 0 0 7.8 18Z",
+  sparkles: "m12 3-1.2 4.1L7 8.3l3.8 1.2L12 14l1.2-4.5L17 8.3l-3.8-1.2L12 3Zm7 10-.7 2.3L16 16l2.3.7L19 19l.7-2.3L22 16l-2.3-.7L19 13Z",
+  code: "m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14",
 };
 
 function Icon({ path }: { path: string }) {
@@ -72,64 +76,31 @@ function ResultCard({
   playing: boolean;
   onPlay: () => void;
 }) {
-  const artwork = item.artwork || `https://i.ytimg.com/vi/${item.videoId}/maxresdefault.jpg`;
+  const artwork =
+    item.artwork ||
+    `https://i.ytimg.com/vi/${encodeURIComponent(item.videoId)}/hqdefault.jpg`;
 
   return (
-    <article className={`musicCard ${playing ? "isPlaying" : ""}`} onClick={onPlay}>
-      <div className="artwork">
-        <img src={artwork} alt="" loading="lazy" />
-        <button
-          type="button"
-          aria-label={playing ? "Pausar" : "Reproducir"}
-          onClick={(event) => {
-            event.stopPropagation();
-            onPlay();
-          }}
-        >
-          <Icon path={playing ? ICONS.pause : ICONS.play} />
-        </button>
-      </div>
+    <article className={`musicCard ${playing ? "isPlaying" : ""}`}>
+      <button
+        type="button"
+        className="artworkButton"
+        aria-label={`${playing ? "Pausar" : "Reproducir"} ${item.title}`}
+        onClick={onPlay}
+      >
+        <div className="artwork">
+          <img src={artwork} alt="" loading="lazy" />
+          <span className="playButton">
+            <Icon path={playing ? ICONS.pause : ICONS.play} />
+          </span>
+        </div>
+      </button>
       <div className="cardMeta">
         <b title={item.title}>{item.title}</b>
         <span title={item.artist}>{item.artist}</span>
         {item.album && <small title={item.album}>{item.album}</small>}
       </div>
     </article>
-  );
-}
-
-function Sidebar({ recent, onReset }: { recent: string; onReset: () => void }) {
-  return (
-    <aside className="sidebar">
-      <div className="sidebarTop">
-        <button className="brandButton" aria-label="Mfly">M</button>
-        <button className="newChat" onClick={onReset}>
-          <Icon path={ICONS.plus} />
-          <span>Nuevo chat</span>
-          <kbd>⌘ K</kbd>
-        </button>
-      </div>
-
-      <div className="sideSection">
-        <span className="sideLabel">Recientes</span>
-        <button className="historyItem active" onClick={onReset}>
-          <Icon path={ICONS.play} />
-          <span>{recent || "Explorar música"}</span>
-        </button>
-      </div>
-
-      <div className="sidebarBottom">
-        <button className="sideLink">
-          <Icon path={ICONS.settings} />
-          <span>Ajustes</span>
-        </button>
-        <button className="profile">
-          <span className="avatar">M</span>
-          <span>Mfly</span>
-          <span>•••</span>
-        </button>
-      </div>
-    </aside>
   );
 }
 
@@ -155,12 +126,16 @@ function PlayerBar({
   return (
     <footer className={`playerBar ${current ? "hasTrack" : ""}`}>
       {!current ? (
-        <div className="playerEmpty">Mfly está listo para reproducir.</div>
+        <div className="playerEmpty">Musify está listo para reproducir.</div>
       ) : (
         <>
           <div className="now">
             <div className="mini">
-              {current.artwork ? <img src={current.artwork} alt="" /> : current.title[0]}
+              {current.artwork ? (
+                <img src={current.artwork} alt="" />
+              ) : (
+                <Icon path={ICONS.music} />
+              )}
             </div>
             <div className="nowText">
               <b title={current.title}>{current.title}</b>
@@ -194,7 +169,12 @@ function PlayerBar({
                 aria-label="Progreso"
                 onClick={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
-                  onSeek(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)));
+                  onSeek(
+                    Math.min(
+                      1,
+                      Math.max(0, (event.clientX - rect.left) / rect.width),
+                    ),
+                  );
                 }}
               >
                 <i style={{ width: `${progress * 100}%` }} />
@@ -222,25 +202,36 @@ export default function Home() {
   const searchAbort = useRef<AbortController | null>(null);
 
   const currentIndex = useMemo(
-    () => (current ? queue.findIndex((item) => item.videoId === current.videoId) : -1),
+    () =>
+      current
+        ? queue.findIndex((item) => item.videoId === current.videoId)
+        : -1,
     [current, queue],
   );
 
-  const playResult = useCallback((item: MusicResult, source: MusicResult[] = results) => {
-    setQueue(source);
-    setCurrent(item);
-    setPlaying(true);
+  const playResult = useCallback(
+    (item: MusicResult, source: MusicResult[] = results) => {
+      setQueue(source);
+      setCurrent(item);
+      setPlaying(true);
+      setProgress(0);
+      setDuration(0);
 
-    if (player.current) {
-      player.current.loadVideoById(item.videoId);
-      player.current.playVideo();
-    }
-  }, [results]);
+      if (player.current) {
+        player.current.loadVideoById(item.videoId);
+        player.current.playVideo();
+      }
+    },
+    [results],
+  );
 
-  const playIndex = useCallback((index: number) => {
-    if (!queue.length) return;
-    playResult(queue[(index + queue.length) % queue.length], queue);
-  }, [playResult, queue]);
+  const playIndex = useCallback(
+    (index: number) => {
+      if (!queue.length) return;
+      playResult(queue[(index + queue.length) % queue.length], queue);
+    },
+    [playResult, queue],
+  );
 
   const next = useCallback(() => {
     if (currentIndex >= 0) playIndex(currentIndex + 1);
@@ -256,7 +247,7 @@ export default function Home() {
     const initPlayer = () => {
       if (!win.YT?.Player || player.current) return;
 
-      player.current = new win.YT.Player("mfly-youtube-player", {
+      player.current = new win.YT.Player("musify-youtube-player", {
         width: "1",
         height: "1",
         playerVars: {
@@ -267,15 +258,11 @@ export default function Home() {
           origin: window.location.origin,
         },
         events: {
-          onReady: () => {
-            if (current) player.current?.loadVideoById(current.videoId);
-          },
+          onReady: () => undefined,
           onStateChange: (event: { data: number; target: YouTubePlayer }) => {
-            const state = event.data;
-            setPlaying(state === win.YT?.PlayerState.PLAYING);
+            setPlaying(event.data === win.YT?.PlayerState.PLAYING);
             setDuration(event.target.getDuration?.() || 0);
           },
-          onAutoplayBlocked: () => setPlaying(false),
           onError: () => setPlaying(false),
         },
       });
@@ -304,13 +291,11 @@ export default function Home() {
         win.onYouTubeIframeAPIReady = previousReady;
       }
     };
-  }, [current]);
+  }, []);
 
   useEffect(() => {
     if (!current || !player.current) return;
     player.current.loadVideoById(current.videoId);
-    setProgress(0);
-    setDuration(0);
   }, [current]);
 
   useEffect(() => {
@@ -334,7 +319,6 @@ export default function Home() {
     const handleShortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setQuery("");
         document.querySelector<HTMLInputElement>(".composer input")?.focus();
       }
     };
@@ -343,54 +327,57 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
 
-  async function search() {
-    const text = query.trim();
-    if (!text || searching) return;
+  async function search(text = query) {
+    const cleanQuery = text.trim();
+    if (!cleanQuery || searching) return;
 
     searchAbort.current?.abort();
     const controller = new AbortController();
     searchAbort.current = controller;
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      text,
-    };
-
-    setChat((messages) => [...messages, userMessage]);
+    setChat((messages) => [
+      ...messages,
+      { id: crypto.randomUUID(), role: "user", text: cleanQuery },
+    ]);
     setQuery("");
     setSearching(true);
 
     try {
-      const response = await fetch(`/api/music/search?q=${encodeURIComponent(text)}`, {
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-      });
+      const response = await fetch(
+        `/api/music/search?q=${encodeURIComponent(cleanQuery)}`,
+        {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        },
+      );
 
-      if (!response.ok) throw new Error(`Search failed: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
 
-      const data: { items?: MusicResult[]; error?: string } = await response.json();
+      const data: { items?: MusicResult[]; error?: string } =
+        await response.json();
       const items = Array.isArray(data.items) ? data.items : [];
 
       setResults(items);
+      setQueue(items);
+      setCurrent(null);
+      setPlaying(false);
+      setProgress(0);
+      setDuration(0);
 
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: data.error || !items.length
-          ? "No encontré esa canción. Prueba con el título y el artista."
-          : "Encontré estas canciones. Reproduciendo la primera.",
-      };
-
-      setChat((messages) => [...messages, assistantMessage]);
-
-      if (items.length) {
-        setQueue(items);
-        setCurrent(null);
-        setPlaying(false);
-        setProgress(0);
-        setDuration(0);
-      }
+      setChat((messages) => [
+        ...messages,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: data.error
+            ? "No pude buscar música ahora mismo."
+            : items.length
+              ? `Resultados para “${cleanQuery}”`
+              : "No encontré canciones para esa búsqueda.",
+        },
+      ]);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -410,18 +397,6 @@ export default function Home() {
     }
   }
 
-  function togglePlayback() {
-    if (!player.current) return;
-
-    if (playing) {
-      player.current.pauseVideo();
-      setPlaying(false);
-    } else {
-      player.current.playVideo();
-      setPlaying(true);
-    }
-  }
-
   function reset() {
     searchAbort.current?.abort();
     player.current?.stopVideo?.();
@@ -436,86 +411,198 @@ export default function Home() {
     setSearching(false);
   }
 
+  function togglePlayback() {
+    if (!player.current || !current) return;
+
+    if (playing) {
+      player.current.pauseVideo();
+      setPlaying(false);
+    } else {
+      player.current.playVideo();
+      setPlaying(true);
+    }
+  }
+
   return (
-    <main className="app">
-      <Sidebar recent={chat.find((message) => message.role === "user")?.text ?? ""} onReset={reset} />
-
-      <section className="main">
-        <header className="topbar">
-          <button className="mobileMenu" aria-label="Menú">
-            <Icon path={ICONS.menu} />
+    <div className="app">
+      <header className="topbar">
+        <div className="topbarSide">
+          <button
+            className="iconButton"
+            type="button"
+            onClick={reset}
+            aria-label="Nuevo chat"
+            title="Nuevo chat"
+          >
+            <Icon path={ICONS.plus} />
           </button>
-          <button className="modelPicker">Mfly <span>⌄</span></button>
-          <button className="topAction" aria-label="Compartir">
-            <Icon path={ICONS.share} />
-          </button>
-        </header>
+        </div>
 
-        <section className={`chat ${chat.length ? "hasMessages" : ""}`}>
+        <div className="brand">Musify</div>
+
+        <div className="topbarSide right">
+          <button
+            className="iconButton"
+            type="button"
+            onClick={reset}
+            aria-label="Limpiar chat"
+            title="Limpiar chat"
+          >
+            <Icon path={ICONS.more} />
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section className="chat">
           {!chat.length ? (
-            <div className="welcome">
-              <div className="welcomeLogo">M</div>
+            <div className="emptyState">
+              <div className="emptyIcon">
+                <Icon path={ICONS.music} />
+              </div>
+
               <h1>¿Qué quieres escuchar?</h1>
-              <p>Entra al chat y pide cualquier canción, artista o estilo.</p>
+
+              <p>
+                Busca una canción, artista, álbum o estilo y reproduce la música
+                directamente desde Musify.
+              </p>
+
+              <div className="quickActions">
+                <button
+                  className="quickAction"
+                  type="button"
+                  onClick={() => void search("Música electrónica")}
+                >
+                  <Icon path={ICONS.music} />
+                  <span>Música electrónica</span>
+                </button>
+
+                <button
+                  className="quickAction"
+                  type="button"
+                  onClick={() => void search("Pop actual")}
+                >
+                  <Icon path={ICONS.sparkles} />
+                  <span>Pop actual</span>
+                </button>
+
+                <button
+                  className="quickAction"
+                  type="button"
+                  onClick={() => void search("Música para estudiar")}
+                >
+                  <Icon path={ICONS.code} />
+                  <span>Para estudiar</span>
+                </button>
+
+                <button
+                  className="quickAction"
+                  type="button"
+                  onClick={() => void search("Bandas sonoras")}
+                >
+                  <Icon path={ICONS.gamepad} />
+                  <span>Bandas sonoras</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="conversation">
-              {chat.map((message) => (
-                <div className={`message ${message.role}`} key={message.id}>
-                  {message.role === "assistant" && <div className="assistantAvatar">M</div>}
-                  <div className="messageBody">
-                    <div className="messageText">{message.text}</div>
-
-                    {message.role === "assistant" && message.id === chat[chat.length - 1]?.id && results.length > 0 && (
-                      <div className="resultGrid">
-                        {results.map((item) => (
-                          <ResultCard
-                            key={item.videoId}
-                            item={item}
-                            playing={current?.videoId === item.videoId && playing}
-                            onPlay={() => playResult(item)}
-                          />
-                        ))}
+            <div className="messages">
+              {chat.map((message, index) => (
+                <div
+                  className={`message ${message.role}`}
+                  key={message.id}
+                >
+                  {message.role === "user" ? (
+                    <div className="userBubble">{message.text}</div>
+                  ) : (
+                    <div className="assistant">
+                      <div className="assistantLabel">
+                        <span className="assistantMark">
+                          <Icon path={ICONS.music} />
+                        </span>
+                        <span>Musify</span>
                       </div>
-                    )}
-                  </div>
+
+                      <div className="assistantText">{message.text}</div>
+
+                      {index === chat.length - 1 && results.length > 0 && (
+                        <div className="resultsGrid">
+                          {results.map((item) => (
+                            <ResultCard
+                              key={item.videoId}
+                              item={item}
+                              playing={
+                                current?.videoId === item.videoId && playing
+                              }
+                              onPlay={() => playResult(item)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
               {searching && (
                 <div className="message assistant">
-                  <div className="assistantAvatar">M</div>
-                  <div className="thinking" aria-label="Buscando">
-                    <i /><i /><i />
+                  <div className="assistantLabel">
+                    <span className="assistantMark">
+                      <Icon path={ICONS.music} />
+                    </span>
+                    <span>Buscando música</span>
+                  </div>
+                  <div className="loading">
+                    <i />
+                    <i />
+                    <i />
                   </div>
                 </div>
               )}
             </div>
           )}
         </section>
+      </main>
 
-        <form
-          className="composer"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void search();
-          }}
-        >
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="¿Qué quieres escuchar?"
-            aria-label="Buscar música"
-          />
-          <button type="submit" className="send" disabled={searching || !query.trim()} aria-label="Enviar">
-            <Icon path={ICONS.send} />
-          </button>
-          <div className="composerHint">Mfly · búsqueda musical</div>
-        </form>
-      </section>
+      <div className="composerArea">
+        <div className="composerWrap">
+          <form
+            className="composer"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void search();
+            }}
+          >
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Busca una canción o artista..."
+              aria-label="Buscar música"
+            />
 
-      <div id="mfly-youtube-player" className="youtubePlayer" aria-hidden="true" />
+            <button
+              className="sendButton"
+              type="submit"
+              aria-label="Buscar"
+              disabled={searching || !query.trim()}
+            >
+              <Icon path={ICONS.send} />
+            </button>
+          </form>
+
+          <div className="composerHint">
+            Musify · búsqueda musical
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="musify-youtube-player"
+        className="youtubePlayer"
+        aria-hidden="true"
+      />
 
       <PlayerBar
         current={current}
@@ -532,6 +619,6 @@ export default function Home() {
           }
         }}
       />
-    </main>
+    </div>
   );
 }

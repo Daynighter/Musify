@@ -230,6 +230,13 @@ export default function Home() {
     setQueue(source);
     setCurrent(item);
     setPlaying(true);
+
+    // When the action starts from a user click, ask the embedded player
+    // to load and play immediately. This avoids losing the user gesture.
+    if (player.current) {
+      player.current.loadVideoById(item.videoId);
+      player.current.playVideo();
+    }
   }, [results]);
 
   const playIndex = useCallback((index: number) => {
@@ -266,9 +273,11 @@ export default function Home() {
             if (current) player.current?.loadVideoById(current.videoId);
           },
           onStateChange: (event: { data: number; target: YouTubePlayer }) => {
-            setPlaying(event.data === win.YT?.PlayerState.PLAYING);
+            const state = event.data;
+            setPlaying(state === win.YT?.PlayerState.PLAYING);
             setDuration(event.target.getDuration?.() || 0);
           },
+          onAutoplayBlocked: () => setPlaying(false),
           onError: () => setPlaying(false),
         },
       });
@@ -377,7 +386,7 @@ export default function Home() {
 
       setChat((messages) => [...messages, assistantMessage]);
 
-      if (items.length) playResult(items[0], items);
+      if (items.length) setCurrent(items[0]);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 

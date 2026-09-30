@@ -126,7 +126,8 @@ export default function Home() {
       return;
     }
 
-    const videoId = player.videoId;
+    const currentPlayer = player;
+    const videoId = currentPlayer.videoId;
     let cancelled = false;
 
     async function mountPlayer() {
